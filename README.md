@@ -115,7 +115,6 @@ Pour établir la table de filtrage, voici les **conditions à respecter** dans l
   <li>En suivant la méthodologie vue en classe, établir la table de filtrage avec précision en spécifiant la source et la destination, le type de trafic (TCP/UDP/ICMP/any), les ports sources et destinations ainsi que l'action désirée (<b>Accept</b> ou <b>Drop</b>, éventuellement <b>Reject</b>).
   </li>                                  
 </ol>
-
 _Pour l'autorisation d'accès (**Accept**), il s'agit d'être le plus précis possible lors de la définition de la source et la destination : si l'accès ne concerne qu'une seule machine (ou un groupe), il faut préciser son adresse IP ou son nom (si vous ne pouvez pas encore la déterminer), et non la zone. 
 Appliquer le principe inverse (être le plus large possible) lorsqu'il faut refuser (**Drop**) une connexion._
 
@@ -123,17 +122,34 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 
 ---
 
-**LIVRABLE : Remplir le tableau**
 
-| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+| exo  | Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
+| ---- | :---------------: | :--------------------: | :--: | :------: | :------: | :----: |
+| 1    | 192.168.100.0/24  |         IP DNS         | UDP  |          |    53    | Accept |
+| 1    | 192.168.100.0/24  |         IP DNS         | TCP  |          |    53    | Accept |
+| 1    |      IP DNS       |     192.168.100/24     | TCP  |    53    |          | Accept |
+| 1    |      IP DNS       |     192.168.100/24     | UDP  |    53    |          | Accept |
+| 2    | 192.168.100.0/24  |          0/0           | ICMP |          |    8     | Accept |
+| 2    |        0/0        |    192.168.100.0/24    | ICMP |    0     |          | Accept |
+| 2    | 192.168.200.0/24  |    192.168.100.0/24    | ICMP |          |    8     | Accept |
+| 2    | 192.168.100.0/24  |    192.168.200.0/24    | ICMP |    0     |          | Accept |
+| 3    | 192.168.100.0/24  |          0/0           | TCP  |          |    80    | Accept |
+| 3    | 192.168.100.0/24  |          0/0           | TCP  |          |   8080   | Accept |
+| 3    |        0/0        |    192.168.100.0/24    | TCP  |    80    |          | Accept |
+| 3    |        0/0        |    192.168.100.0/24    | TCP  |   8080   |          | Accept |
+| 4    | 192.168.100.0/24  |          0/0           | TCP  |          |   443    | Accept |
+| 4    |        0/0        |    192.168.100.0/24    | TCP  |   443    |          | Accept |
+| 5    |        0/0        |     192.168.200.3      | TCP  |          |    80    | Accept |
+| 5    |   192.168.200.3   |          0/0           | TCP  |    80    |          | Accept |
+| 6    | 192.168.100.0/24  |     192.168.200.3      | TCP  |          |    22    | Accept |
+| 6    |   192.168.200.3   |    192.168.100.0/24    | TCP  |    22    |          | Accept |
+| 7    | 192.168.100.0/24  |     192.168.100.2      | TCP  |          |    22    | Accept |
+| 7    |   192.168.100.2   |    192.168.100.0/24    | TCP  |    22    |          | Accept |
+| 8    |        0/0        |     192.168.100/24     |      |          |          |  Deny  |
+| 8    |        0/0        |     192.168.200/24     |      |          |          |  Deny  |
+| 8    |        0/0        |      172.0.0.0/8       |      |          |          |  Deny  |
+
+Il est bon de noter que les règles du point 8 seront inscrites avec le comportement par défaut bloquant `iptables -P INPUT|OUTPUT|FORWARD DROP.`
 
 ---
 
@@ -211,7 +227,7 @@ ping 192.168.200.3
 ```
 ---
 
-**LIVRABLE : capture d'écran de votre tentative de ping.**  
+![image](https://user-images.githubusercontent.com/21290957/112553691-458eeb00-8dc5-11eb-878d-c628384da420.png)
 
 ---
 
@@ -247,12 +263,12 @@ La communication devrait maintenant être possible entre les deux machines à tr
 ```bash
 ping 192.168.100.3
 ```
+**DMZ**
+![image](https://user-images.githubusercontent.com/21290957/111645359-eb0ff080-8800-11eb-9792-970615a22fd0.png)
 
----
+**LAN**
+![image](https://user-images.githubusercontent.com/21290957/111645515-0e3aa000-8801-11eb-8c92-10f3c09a339a.png)
 
-**LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
-
----
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
 
@@ -266,7 +282,7 @@ Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indiq
 
 ---
 
-**LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+![image](https://user-images.githubusercontent.com/21290957/111645979-899c5180-8801-11eb-9de3-8dcbaea963a6.png)
 
 ---
 
@@ -345,7 +361,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -s 192.168.100.0/24 -d 0/0 -p icmp --icmp-type 8 -j ACCEPT
+iptables -A FORWARD -s 0/0 -d 192.168.100.0/24 -p icmp --icmp-type 0 -j ACCEPT
+iptables -A FORWARD -s 192.168.200.0/24 -d 192.168.100.0/24 -p icmp --icmp-type 8 -j ACCEPT
+iptables -A FORWARD -s 192.168.100.0/24 -d 192.168.200.0/24 -p icmp --icmp-type 0 -j ACCEPT
 ```
 ---
 
@@ -358,20 +377,17 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+```
 Faire une capture du ping.
+![image](https://user-images.githubusercontent.com/21290957/112502622-81f12580-8d8a-11eb-9edb-dfbda320740b.png)
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
+![image](https://user-images.githubusercontent.com/21290957/112505150-caa9de00-8d8c-11eb-8120-8a58649dee2b.png)
 
-
----
-**LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
-
----
 
 <ol type="a" start="3">
   <li>Testez ensuite toutes les règles, depuis le Client_in_LAN puis depuis le serveur Web (Server_in_DMZ) et remplir le tableau suivant : 
@@ -379,20 +395,20 @@ traceroute 8.8.8.8
 </ol>
 
 
-| De Client\_in\_LAN à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
+| De Client\_in\_LAN à | OK/KO | Commentaires et explications                                 |
+| :------------------- | :---: | :----------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | On ne permet aucun ping depuis le LAN sur l'entrée du FW. Il faudrait configurer INPUT |
+| Interface LAN du FW  |  KO   | On ne permet aucun ping depuis le LAN sur l'entrée du FW. Il faudrait configurer INPUT |
+| Client LAN           |  OK   | Une machine peut toujours se ping elle-même.                 |
+| Serveur WAN          |  OK   | On a autorisé cette opération.                               |
 
 
-| De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| De Server\_in\_DMZ à | OK/KO | Commentaires et explications                                 |
+| :------------------- | :---: | :----------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | On ne permet aucun ping depuis la DMZ sur l'entrée du FW. Il faudrait configurer INPUT |
+| Interface LAN du FW  |  KO   | On ne permet aucun ping depuis la DMZ sur l'entrée du FW. Il faudrait configurer INPUT |
+| Serveur DMZ          |  OK   | Une machine peut toujours se ping elle-même                  |
+| Serveur WAN          |  KO   | On a pas authorisé au DMZ de ping dehors, donc c'est bloqué par défaut |
 
 
 ## Règles pour le protocole DNS
@@ -406,13 +422,8 @@ traceroute 8.8.8.8
 ping www.google.com
 ```
 
-* Faire une capture du ping.
+![image](https://user-images.githubusercontent.com/21290957/112511502-c254a180-8d92-11eb-8199-d652efbe1216.png)
 
----
-
-**LIVRABLE : capture d'écran de votre ping.**
-
----
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
 
@@ -421,7 +432,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -s 192.168.100/24 -p udp --dport 53 -j ACCEPT
+iptables -A FORWARD -d 192.168.100/24 -p udp --sport 53 -j ACCEPT
+iptables -A FORWARD -s 192.168.100/24 -p tcp --dport 53 -j ACCEPT
+iptables -A FORWARD -d 192.168.100/24 -p tcp --sport 53 -j ACCEPT
 ```
 
 ---
@@ -433,7 +447,8 @@ LIVRABLE : Commandes iptables
 
 ---
 
-**LIVRABLE : capture d'écran de votre ping.**
+![image](https://user-images.githubusercontent.com/21290957/112512774-f5e3fb80-8d93-11eb-90c0-126158fab3d9.png)
+
 
 ---
 
@@ -445,7 +460,7 @@ LIVRABLE : Commandes iptables
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+Le premier ping a traduit l'adresse de www.google.ch, et ensuite les ping ont été effectués avec l'adresse IP.
 
 ---
 
@@ -465,7 +480,12 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -s 192.168.100.0/24 -d 0/0 -p TCP --dport 80 -j ACCEPT
+iptables -A FORWARD -s 192.168.100.0/24 -d 0/0 -p TCP --dport 8080 -j ACCEPT
+iptables -A FORWARD -s 0/0 -d 192.168.100.0/24 -p TCP --sport 80 -j ACCEPT
+iptables -A FORWARD -s 0/0 -d 192.168.100.0/24 -p TCP --sport 8080 -j ACCEPT
+iptables -A FORWARD -s 192.168.100.0/24 -d 0/0 -p TCP --dport 443 -j ACCEPT
+iptables -A FORWARD -s 0/0 -d 192.168.100.0/24 -p TCP --sport 443 -j ACCEPT
 ```
 
 ---
@@ -477,7 +497,8 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -s 0/0 -d 192.168.200.3 -p TCP --dport 80 -j ACCEPT
+iptables -A FORWARD -s 192.168.200.3 -d 0/0 -p TCP --sport 80 -j ACCEPT
 ```
 ---
 
@@ -488,7 +509,14 @@ LIVRABLE : Commandes iptables
 
 ---
 
-**LIVRABLE : capture d'écran.**
+**Connexion au serveur de l'HEIG**
+![image](https://user-images.githubusercontent.com/21290957/112552497-3870fc80-8dc3-11eb-98a0-44271c79c3a9.png)
+
+**Connexion au serveur de l'HEIG en https**
+![image](https://user-images.githubusercontent.com/21290957/112552718-8be34a80-8dc3-11eb-8531-b23e6bd8e83d.png)
+
+**Connexion au serveur DMZ**
+![image](https://user-images.githubusercontent.com/21290957/112552318-e203be00-8dc2-11eb-8db5-0ee2ed3c8f40.png)
 
 ---
 
@@ -505,7 +533,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -s 192.168.100.0/24 -d 192.168.200.3 -p TCP --dport 22 -j ACCEPT
+iptables -A FORWARD -s 192.168.200.3 -d 192.168.100.0/24 -p TCP --sport 22 -j ACCEPT
+iptables -A INPUT -s 192.168.100.0/24 -d 192.168.100.2 -p TCP --dport 22 -j ACCEPT
+iptables -A OUTPUT -s 192.168.100.2 -d 192.168.100.0/24 -p TCP --sport 22 -j ACCEPT
 ```
 
 ---
@@ -518,7 +549,11 @@ ssh root@192.168.200.3
 
 ---
 
-**LIVRABLE : capture d'écran de votre connexion ssh.**
+**Connexion avec ssh au serveur de la DMZ depuis le lan**
+![image](https://user-images.githubusercontent.com/21290957/112552887-d1a01300-8dc3-11eb-98d6-2d778c2dc910.png)
+
+**Connexion avec ssh au serveur FW depuis le lan**
+![image](https://user-images.githubusercontent.com/21290957/112553028-0ad88300-8dc4-11eb-829a-ff7fcadce23b.png)
 
 ---
 
@@ -528,9 +563,10 @@ ssh root@192.168.200.3
 </ol>
 
 ---
+
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+Elle permet à un administrateur réseau de se connecter à distance, avec une connexion sécurisée, afin d'administrer grâce au shell les différents services. 
 
 ---
 
@@ -539,11 +575,11 @@ ssh root@192.168.200.3
   </li>                                  
 </ol>
 
-
 ---
+
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+Comme une liaison doit être intègre, authentique et confidentielle,  il faut bien vérifier à l'aide du pare-feu que quelqu'un de extérieur de ne fasse pas passer pour quelqu'un d'autre (man in the middle). Pour ceci, vérifier  que la connexion vient en interne. Il pourrait toujours avoir une intrusion ou un espion en interne, mais il sera impossible pour un attaquant de se connecter au serveur depuis extérieur, ce qui est une bonne protection. Si quelqu'un arrivait à trouver les identifiants sur serveur, alors ce serait une catastrophe, car il pourrait changer tous les filtres `iptables.` De plus, en donnant accès à l'exterieur, il serait possible qu'un réseau de bot fasse une attaque de bruteforce sur le mot de passe, d'où l'utilité de bloquer les accès depuis l'exterieur. 
 
 ---
 
@@ -558,6 +594,7 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 
 ---
 
-**LIVRABLE : capture d'écran avec toutes vos règles.**
+![image](https://user-images.githubusercontent.com/21290957/112553082-26438e00-8dc4-11eb-8230-bcbaf1bc2da6.png)
 
 ---
+
