@@ -109,13 +109,12 @@ Pour établir la table de filtrage, voici les **conditions à respecter** dans l
 7.	Le firewall peut être configuré à distance par **ssh** depuis votre client du LAN **uniquement**.
 8.	**Toute autre action est par défaut interdite**.
 
-# Regles de filtrage
+# Règles de filtrage
 
 <ol type="a" start="1">
   <li>En suivant la méthodologie vue en classe, établir la table de filtrage avec précision en spécifiant la source et la destination, le type de trafic (TCP/UDP/ICMP/any), les ports sources et destinations ainsi que l'action désirée (<b>Accept</b> ou <b>Drop</b>, éventuellement <b>Reject</b>).
   </li>                                  
 </ol>
-
 _Pour l'autorisation d'accès (**Accept**), il s'agit d'être le plus précis possible lors de la définition de la source et la destination : si l'accès ne concerne qu'une seule machine (ou un groupe), il faut préciser son adresse IP ou son nom (si vous ne pouvez pas encore la déterminer), et non la zone. 
 Appliquer le principe inverse (être le plus large possible) lorsqu'il faut refuser (**Drop**) une connexion._
 
@@ -125,15 +124,34 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 
 **LIVRABLE : Remplir le tableau**
 
-| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+| Adresse IP source | Adresse IP destination |  Type   | Port src | Port dst | Action |
+| :---------------: | :--------------------: | :-----: | :------: | :------: | :----: |
+| 192.168.100.0/24  |     Interface WAN      | UDP/TCP |    -     |    53    | Accept |
+|   Interface WAN   |    192.168.100.0/24    | UDP/TCP |    53    |    -     | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP-8  |          |          | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP-0  |          |          | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP-8  |          |          | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP-0  |          |          | Accept |
+| 192.168.100.0/24  |     Interface WAN      | ICMP-8  |          |          | Accept |
+|   Interface WAN   |    192.168.100.0/24    | ICMP-0  |          |          | Accept |
+| 192.168.100.0/24  |     Interface WAN      |   TCP   |    -     |    80    | Accept |
+|   Interface WAN   |    192.168.100.0/24    |   TCP   |    80    |    -     | Accept |
+| 192.168.100.0/24  |     Interface WAN      |   TCP   |    -     |   8080   | Accept |
+|   Interface WAN   |    192.168.100.0/24    |   TCP   |   8080   |    -     | Accept |
+| 192.168.100.0/24  |     Interface WAN      |   TCP   |    -     |   443    | Accept |
+|   Interface WAN   |    192.168.100.0/24    |   TCP   |   443    |    -     | Accept |
+| 192.168.100.0/24  |     192.168.200.3      |   TCP   |    -     |    80    | Accept |
+|   192.168.200.3   |    192.168.100.0/24    |   TCP   |    80    |    -     | Accept |
+|   Interface WAN   |     192.168.200.3      |   TCP   |    -     |    80    | Accept |
+|   192.168.200.3   |     Interface WAN      |   TCP   |    80    |    -     | Accept |
+|   192.168.100.3   |     192.168.200.3      |   TCP   |    -     |    22    | Accept |
+|   192.168.200.3   |     192.168.100.3      |   TCP   |    22    |    -     | Accept |
+|   192.168.100.3   |     192.168.100.2      |   TCP   |    -     |    22    | Accept |
+|   192.168.100.2   |     192.168.100.3      |   TCP   |    22    |    -     | Accept |
+|         -         |    192.168.100.0/24    | TCP/UDP |    -     |    -     |  Drop  |
+|         -         |    192.168.200.0/24    | TCP/UDP |    -     |    -     |  Drop  |
+| 192.168.100.0/24  |           -            | TCP/UDP |    -     |    -     |  Drop  |
+| 192.168.200.0/24  |           -            | TCP/UDP |    -     |    -     |  Drop  |
 
 ---
 
@@ -211,7 +229,9 @@ ping 192.168.200.3
 ```
 ---
 
-**LIVRABLE : capture d'écran de votre tentative de ping.**  
+**LIVRABLE**
+
+![SRX_configbase_1](./figures/SRX_configbase_1.png)
 
 ---
 
@@ -252,6 +272,18 @@ ping 192.168.100.3
 
 **LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
 
+*Ping depuis la dmz vers le client*
+
+![SRX_ping_config_dmz](./figures/SRX_ping_config_dmz.png)
+
+*Route du client*
+
+![SRX_route_1](./figures/SRX_route_1.png)
+
+*Route du serveur*
+
+![SRX_route-dmz](./figures/SRX_route-dmz.png)
+
 ---
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
@@ -266,7 +298,13 @@ Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indiq
 
 ---
 
-**LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+**LIVRABLE**
+
+*Ping depuis le client*
+
+![SRX_PING_WAN_1](./figures/SRX_PING_WAN_1.png)
+
+
 
 ---
 
@@ -344,8 +382,20 @@ Commandes iptables :
 
 ---
 
+**LIVRABLE**
+
 ```bash
-LIVRABLE : Commandes iptables
+  iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+  iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+  iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+  iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+  iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -o eth0 -j ACCEPT
+  iptables -A FORWARD -p icmp --icmp-type 0 -d 192.168.100.0/24 -i eth0 -j ACCEPT
+
+  # For number 8
+  iptables -P INPUT DROP 
+  iptables -P OUTPUT DROP 
+  iptables -P FORWARD DROP
 ```
 ---
 
@@ -358,18 +408,24 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+```
 Faire une capture du ping.
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
 
 
 ---
 **LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
+
+![SRX_PING_Client_WAN_2](./figures/SRX_PING_Client_WAN_2.png)
+
+![image-20210318191334337](./figures/SRX_Traceroute.png)
+
+(Il a fallu mettre les policies OUTPUT et FORWARD à ACCEPT pour que le traceroute fonctionne).
 
 ---
 
@@ -379,20 +435,20 @@ traceroute 8.8.8.8
 </ol>
 
 
-| De Client\_in\_LAN à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
+| De Client\_in\_LAN à | OK/KO |                 Commentaires et explications                 |
+| :------------------- | :---: | :----------------------------------------------------------: |
+| Interface DMZ du FW  |  KO   | Le firewall ne retourne rien, il transfert uniquement les paquets |
+| Interface LAN du FW  |  KO   | Le firewall ne retourne rien, il transfert uniquement les paquets |
+| Client LAN           |  OK   |  Est censé passé par le loopback car il s'agit de lui même   |
+| Serveur WAN          |  OK   |           Est autorisé par les règles du firewall            |
 
 
-| De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| De Server\_in\_DMZ à | OK/KO |                 Commentaires et explications                 |
+| :------------------- | :---: | :----------------------------------------------------------: |
+| Interface DMZ du FW  |  KO   | Le firewall ne retourne rien, il transfert uniquement les paquets. |
+| Interface LAN du FW  |  KO   | Le firewall ne retourne rien, il transfert uniquement les paquets. |
+| Serveur DMZ          |  OK   |  Est censé passé par le loopback car il s'agit de lui même   |
+| Serveur WAN          |  KO   |            Pas de ping vers l'extérieur autorisé             |
 
 
 ## Règles pour le protocole DNS
@@ -412,7 +468,9 @@ ping www.google.com
 
 **LIVRABLE : capture d'écran de votre ping.**
 
----
+![SRX_Ping_DNS_fail](./figures/SRX_Ping_DNS_fail.png)
+
+*Avec de grandes difficultés, nous avons réussi à bloquer les requêtes DNS.* 
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
 
@@ -421,7 +479,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+   iptables -A FORWARD -p udp -s 192.168.100.0/24 -o eth0 --dport 53 -j ACCEPT
+   iptables -A FORWARD -p udp -d 192.168.100.0/24 -i eth0 --sport 53 -j ACCEPT
+   iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --dport 53 -j ACCEPT
+   iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --sport 53 -j ACCEPT
 ```
 
 ---
@@ -435,6 +496,8 @@ LIVRABLE : Commandes iptables
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![SRX_ping_succes](./figures/SRX_ping_succes.png)
+
 ---
 
 <ol type="a" start="6">
@@ -445,7 +508,9 @@ LIVRABLE : Commandes iptables
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+**LIVRABLE : **
+
+Le ping n'a pas pu être effectué car la résolution du nom de domaine n'a pas pu aboutir car les requêtes DNS sont DROP par le firewall. Le ping n'ayant pas d'adresse à ping, il ne peut donc pas poursuivre et indique qu'une erreur est survenue. 
 
 ---
 
@@ -465,7 +530,13 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --sport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --sport 8080 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --dport 8080 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --sport 443 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --dport 443 -j ACCEPT
+
 ```
 
 ---
@@ -477,7 +548,11 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -s 192.168.200.3 -o eth0 --sport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.200.3 -i eth0 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.200.3 -s 192.168.100.0/24 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.200.3 -d 192.168.100.0/24 --sport 80 -j ACCEPT
+
 ```
 ---
 
@@ -489,6 +564,8 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran.**
+
+![SRX_Wget_client_dmz](./figures/SRX_Wget_client_dmz.png)
 
 ---
 
@@ -505,7 +582,11 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -s 192.168.200.3 -d 192.168.100.3 --sport 22 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.200.3 -s 192.168.100.3 --dport 22 -j ACCEPT
+iptables -A INPUT   -p tcp -s 192.168.100.3 --dport 22 -j ACCEPT
+iptables -A OUTPUT  -p tcp -d 192.168.100.3 --sport 22 -j ACCEPT
+
 ```
 
 ---
@@ -520,6 +601,8 @@ ssh root@192.168.200.3
 
 **LIVRABLE : capture d'écran de votre connexion ssh.**
 
+![SRX_ssh_dmz](./figures/SRX_ssh_dmz.png)
+
 ---
 
 <ol type="a" start="9">
@@ -530,7 +613,9 @@ ssh root@192.168.200.3
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+**LIVRABLE :**
+
+ssh permet de gérer le serveur à distance. De plus, un serveur ne dispose pas d'interface graphique permettant de le gérer physiquement. ssh permet donc de résoudre ce problème. De plus. le protocole est sécurisé contrairement à telnet.
 
 ---
 
@@ -543,7 +628,9 @@ ssh root@192.168.200.3
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+**LIVRABLE :**
+
+A ne donner accès à personne qui ne devrait pas l'avoir
 
 ---
 
@@ -561,3 +648,7 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 **LIVRABLE : capture d'écran avec toutes vos règles.**
 
 ---
+
+
+
+![SRX_final_screen](./figures/SRX_Final.png)
