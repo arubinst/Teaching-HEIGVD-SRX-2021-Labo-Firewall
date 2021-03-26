@@ -47,7 +47,7 @@ Par la suite, la mise en pratique d’un pare-feu permettra d’approfondir la c
 
 Ce texte se réfère au laboratoire « Pare-feu » à suivre dans le cadre du cours Sécurité des Réseaux, 2021, version 7.0.  Au cours du temps, il a été rédigé, modifié et amélioré par les co-auteurs suivants : Gilles-Etienne Vallat, Alexandre Délez, Olivia Manz, Patrick Mast, Christian Buchs, Sylvain Pasini, Vincent Pezzi, Yohan Martini, Ioana Carlson, Abraham Rubinstein et Frédéric Saam.
 
-## Echéance 
+## Échéance 
 
 Ce travail devra être rendu le dimanche après la fin de la 2ème séance de laboratoire, soit au plus tard, **le 01 avril 2021, à 23h59.**
 
@@ -125,15 +125,31 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 
 **LIVRABLE : Remplir le tableau**
 
-| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+| Adresse IP source | Adresse IP destination |       Type        | Port src | Port dst | Action |
+| :---------------: | :--------------------: | :---------------: | :------: | :------: | :----: |
+| 192.168.100.0/24  |     Interface WAN      |        UDP        |   any    |    53    | Accept |
+| 192.168.100.0/24  |     Interface WAN      |        TCP        |   any    |    53    | Accept |
+| 192.168.100.0/24  |     Interface WAN      | ICMP echo-request |    -     |    -     | Accept |
+|   Interface WAN   |    192.168.100.0/24    |  ICMP echo-reply  |    -     |    -     | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP echo-request |    -     |    -     | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    |  ICMP echo-reply  |    -     |    -     | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP echo-request |    -     |    -     | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    |  ICMP echo-reply  |    -     |    -     | Accept |
+| 192.168.100.0/24  |     Interface WAN      |        TCP        |   any    |    80    | Accept |
+| 192.168.100.0/24  |     Interface WAN      |        TCP        |   any    |   8080   | Accept |
+| 192.168.100.0/24  |     Interface WAN      |        TCP        |   any    |   443    | Accept |
+|   Interface WAN   |     192.168.200.3      |        TCP        |   any    |    80    | Accept |
+| 192.168.100.0/24  |     192.168.200.3      |        TCP        |   any    |    80    | Accept |
+|   192.168.100.3   |     192.168.200.3      |        TCP        |   any    |    22    | Accept |
+|   192.168.100.3   |        Firewall        |        TCP        |   any    |    22    | Accept |
+|        any        |          any           |        any        |   any    |   any    |  Drop  |
+
+Les règles concernant le trafic de retour ont volontairement été omises (sauf pour ICMP) car un pare-feu avec état a été mis en place pour ce laboratoire et une règle autorisant ce trafic a été définie. Règle en question :
+
+```bash
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+```
+Dans le cas d'une configuration de pare-feu sans état ou la volonté d'avoir une granularité plus fine (afin de rediriger le trafic de retour sur une machine en particulier par exemple), ces règles-là doivent bien évidemment être renseignées mais ce n'est pas demandé dans ce laboratoire.
 
 ---
 
@@ -211,7 +227,9 @@ ping 192.168.200.3
 ```
 ---
 
-**LIVRABLE : capture d'écran de votre tentative de ping.**  
+**LIVRABLE : capture d'écran de votre tentative de ping.** 
+
+![image-20210318141507945](img/image-20210318141507945.png)
 
 ---
 
@@ -252,6 +270,16 @@ ping 192.168.100.3
 
 **LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
 
+*Client_in_LAN* :
+
+![image-20210318142255410](img/image-20210318142255410.png)
+
+*Server_in_DMZ* :
+
+![image-20210318142355714](img/image-20210318142355714.png)
+
+![image-20210318142420091](img/image-20210318142420091.png)
+
 ---
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
@@ -262,11 +290,19 @@ Par exemple :
 ping 8.8.8.8
 ```
 
-Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indique que votre ping est passé grace à la redirection ICMP, mais que vous n'arrivez pas encore à contacter l'Internet à travers de Firewall. Ceci est donc aussi valable pour l'instant et accepté comme résultat.
+Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indique que votre ping est passé grâce à la redirection ICMP, mais que vous n'arrivez pas encore à contacter l'Internet à travers de Firewall. Ceci est donc aussi valable pour l'instant et accepté comme résultat.
 
 ---
 
-**LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+**LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses contenant des _Redirect Host_ sont acceptés.**
+
+Depuis le serveur en DMZ : 
+
+![image-20210318142657061](img/image-20210318142657061.png)
+
+Depuis le client LAN :
+
+![image-20210318142736358](img/image-20210318142736358.png)
 
 ---
 
@@ -311,7 +347,7 @@ Sauvegarder la configuration du firewall dans le fichier `iptables.conf` :
 iptables-save > iptables.conf
 ```
 
-Récuperer la config sauvegardée :
+Récupérer la config sauvegardée :
 
 ```bash
 iptables-restore < iptables.conf
@@ -346,6 +382,29 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+#Blocage de toutes les connexions par défaut
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+#Laisse passer les paquets faisant partie d'une communication en cours ou d'une communication dérivée 
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+#Bloque les paquets hors-contexte
+iptables -A FORWARD -m conntrack --ctstate INVALID -j DROP
+
+#Accepte les ping du LAN vers la DMZ
+iptables -A FORWARD -p ICMP --icmp-type echo-request -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+iptables -A FORWARD -p ICMP --icmp-type echo-reply -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+
+#Accepte les ping du LAN vers le WAN (sur l'interface de sortie eth0)
+iptables -A FORWARD -p ICMP --icmp-type echo-request -s 192.168.100.0/24 -o eth0 -j ACCEPT
+iptables -A FORWARD -p ICMP --icmp-type echo-reply -d 192.168.100.0/24 -i eth0 -j ACCEPT
+
+#Accepte les ping de la DMZ vers le LAN
+iptables -A FORWARD -p ICMP --icmp-type echo-request -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p ICMP --icmp-type echo-reply -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
 ```
 ---
 
@@ -358,18 +417,26 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+```
 Faire une capture du ping.
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
 
 
 ---
 **LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
+
+![image-20210318154133245](img/image-20210318154133245.png)
+
+Pour que le traceroute nous donne ces informations, il a fallu changer la politique de *FORWARD* et *OUTPUT* en la passant à ACCEPT, le temps de faire cette commande.
+
+![image-20210318160539843](img/image-20210318160539843.png)
+
+
 
 ---
 
@@ -379,20 +446,20 @@ traceroute 8.8.8.8
 </ol>
 
 
-| De Client\_in\_LAN à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
+| De Client\_in\_LAN à | OK/KO | Commentaires et explications                            |
+| :------------------- | :---: | :------------------------------------------------------ |
+| Interface DMZ du FW  |  KO   | Policy DROP configurée pour la chaine INPUT du Firewall |
+| Interface LAN du FW  |  KO   | Policy DROP configurée pour la chaine INPUT du Firewall |
+| Client LAN           |  OK   | Reste sur sa propre interface                           |
+| Serveur WAN          |  OK   | Grâce à la règle mise en place                          |
 
 
-| De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| De Server\_in\_DMZ à | OK/KO | Commentaires et explications                                 |
+| :------------------- | :---: | :----------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | Policy DROP configurée pour la chaine INPUT du Firewall      |
+| Interface LAN du FW  |  KO   | Policy DROP configurée pour la chaine INPUT du Firewall      |
+| Serveur DMZ          |  OK   | Reste sur sa propre interface                                |
+| Serveur WAN          |  KO   | Policy DROP configurée par défaut sur la chaine FORWARD du Firewall |
 
 
 ## Règles pour le protocole DNS
@@ -412,6 +479,8 @@ ping www.google.com
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![image-20210318162115836](img/image-20210318162115836.png)
+
 ---
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
@@ -422,6 +491,12 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+#Permet la communication du LAN vers le WAN sur le port 53 en UDP (sur l'interface de sortie eth0)
+iptables -A FORWARD -p UDP -s 192.168.100.0/24 --dport 53 -o eth0 -j ACCEPT
+
+#Permet la communication du LAN vers le WAN sur le port 53 en TCP (sur l'interface de sortie eth0)
+iptables -A FORWARD -p TCP -s 192.168.100.0/24 --dport 53 -o eth0 -j ACCEPT
 ```
 
 ---
@@ -435,6 +510,8 @@ LIVRABLE : Commandes iptables
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![image-20210318162748857](img/image-20210318162748857.png)
+
 ---
 
 <ol type="a" start="6">
@@ -446,6 +523,8 @@ LIVRABLE : Commandes iptables
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+La communication ne fonctionnait pas car la requête DNS était bloquée par le Firewall. Le message d'erreur indiqué (*Temporary failure in name resolution*) nous informe qu'une traduction a été tentée mais a échoué car le port 53 était bloqué par le pare-feu.
 
 ---
 
@@ -466,6 +545,15 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+#Permet la communication du LAN vers le WAN sur le port 80 en TCP (HTTP)
+iptables -A FORWARD -p TCP -s 192.168.100.0/24 --dport 80 -o eth0 -j ACCEPT
+
+#Permet la communication du LAN vers le WAN sur le port 8080 en TCP (HTTP)
+iptables -A FORWARD -p TCP -s 192.168.100.0/24 --dport 8080 -o eth0 -j ACCEPT
+
+#Permet la communication du LAN vers le WAN sur le port 443 en TCP (HTTPS)
+iptables -A FORWARD -p TCP -s 192.168.100.0/24 --dport 443 -o eth0 -j ACCEPT
 ```
 
 ---
@@ -478,6 +566,12 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+#Permet la communication du WAN vers le serveur de la DMZ sur le port 80
+iptables -A FORWARD -p TCP -d 192.168.200.3 --dport 80 -i eth0 -j ACCEPT
+
+#Permet la communication du LAN vers le serveur de la DMZ sur le port 80
+iptables -A FORWARD -p TCP -s 192.168.100.0/24 -d 192.168.200.3 --dport 80 -j ACCEPT
 ```
 ---
 
@@ -489,6 +583,8 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran.**
+
+![image-20210318164714455](img/image-20210318164714455.png)
 
 ---
 
@@ -506,6 +602,16 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+#Permet la communication entre le client LAN et le serveur en DMZ sur le port 22 (SSH)
+iptables -A FORWARD -p TCP -s 192.168.100.3 -d 192.168.200.3 --dport 22 -j ACCEPT
+
+#Permet la communication entre le client LAN et le Firewall, il n'accepte que les paquets
+#d'une nouvelle communication ou d'une communication déjà établie 
+iptables -A INPUT -m conntrack --ctstate NEW,ESTABLISHED -p TCP -s 192.168.100.3 -d 192.168.100.2 --dport 22 -j ACCEPT
+
+#Permet au Firewall de répondre sur le port 22 qu'à des paquets dans l'état ESTABLISHED
+iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED -p TCP -s 192.168.100.2 -d 192.168.100.3 --sport 22 -j ACCEPT
 ```
 
 ---
@@ -520,6 +626,8 @@ ssh root@192.168.200.3
 
 **LIVRABLE : capture d'écran de votre connexion ssh.**
 
+![image-20210325140332541](img/image-20210325140332541.png)
+
 ---
 
 <ol type="a" start="9">
@@ -531,6 +639,8 @@ ssh root@192.168.200.3
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Cela permet de l'administrer à distance avec un terminal via une connexion chiffrée et donc ne pas devoir s'y connecter physiquement.
 
 ---
 
@@ -544,6 +654,8 @@ ssh root@192.168.200.3
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Les règles doivent être définies le plus précisément possible afin de n'autoriser que les communications avec les machines voulues. Par exemple, si qu'une seule machine doit pouvoir se connecter en ssh à un serveur, il ne faut pas autoriser toutes les machines du sous-réseau à le faire mais bien que la machine concernée en renseignant son adresse IP. Ceci afin de limiter les risques si le réseau devait être compromis par un attaquant.
 
 ---
 
@@ -560,4 +672,7 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 
 **LIVRABLE : capture d'écran avec toutes vos règles.**
 
+![image-20210325135849432](img/image-20210325135849432.png)
+
 ---
+
