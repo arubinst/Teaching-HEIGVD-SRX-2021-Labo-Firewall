@@ -1,6 +1,12 @@
+
+
 # Teaching-HEIGVD-SRX-2021-Laboratoire-Firewall
 
 **Travail à réaliser en équipes de deux personnes.**
+
+AUTEURS: Alexandra Cerottini & Fiona Gamboni
+
+DATE: 21.03.2021
 
 **ATTENTION : Commencez par créer un Fork de ce repo et travaillez sur votre fork.**
 
@@ -115,7 +121,6 @@ Pour établir la table de filtrage, voici les **conditions à respecter** dans l
   <li>En suivant la méthodologie vue en classe, établir la table de filtrage avec précision en spécifiant la source et la destination, le type de trafic (TCP/UDP/ICMP/any), les ports sources et destinations ainsi que l'action désirée (<b>Accept</b> ou <b>Drop</b>, éventuellement <b>Reject</b>).
   </li>                                  
 </ol>
-
 _Pour l'autorisation d'accès (**Accept**), il s'agit d'être le plus précis possible lors de la définition de la source et la destination : si l'accès ne concerne qu'une seule machine (ou un groupe), il faut préciser son adresse IP ou son nom (si vous ne pouvez pas encore la déterminer), et non la zone. 
 Appliquer le principe inverse (être le plus large possible) lorsqu'il faut refuser (**Drop**) une connexion._
 
@@ -125,15 +130,36 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 
 **LIVRABLE : Remplir le tableau**
 
-| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+| Adresse IP source | Adresse IP destination |  Type  | Port src | Port dst | Action |
+| :---------------: | :--------------------: | :----: | :------: | :------: | :----: |
+| 192.168.100.0/24  |          WAN           |  TCP   |    *     |    53    | Accept |
+|        WAN        |    192.168.100.0/24    |  TCP   |    53    |    *     | Accept |
+| 192.168.100.0/24  |          WAN           |  UDP   |    *     |    53    | Accept |
+|        WAN        |    192.168.100.0/24    |  UDP   |    53    |    *     | Accept |
+| 192.168.100.0/24  |          WAN           | ICMP-8 |          |          | Accept |
+|        WAN        |    192.168.100.0/24    | ICMP-0 |          |          | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP-8 |          |          | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP-0 |          |          | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP-8 |          |          | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP-0 |          |          | Accept |
+| 192.168.100.0/24  |          WAN           |  TCP   |    *     |    80    | Accept |
+| 192.168.100.0/24  |          WAN           |  TCP   |    *     |   8080   | Accept |
+|        WAN        |    192.168.100.0/24    |  TCP   |    80    |    *     | Accept |
+| 192.168.100.0/24  |          WAN           |  TCP   |   8080   |    *     | Accept |
+| 192.168.100.0/24  |          WAN           |  TCP   |    *     |   443    | Accept |
+|        WAN        |    192.168.100.0/24    |  TCP   |   443    |    *     | Accept |
+| 192.168.100.0/24  |     192.168.200.3      |  TCP   |    *     |    80    | Accept |
+|   192.168.200.3   |    192.168.100.0/24    |  TCP   |    80    |    *     | Accept |
+|        WAN        |     192.168.200.3      |  TCP   |    *     |    80    | Accept |
+|   192.168.200.3   |          WAN           |  TCP   |    80    |    *     | Accept |
+|   192.168.100.3   |     192.168.200.3      |  TCP   |    *     |    22    | Accept |
+|   192.168.200.3   |     192.168.100.3      |  TCP   |    22    |    *     | Accept |
+|   192.168.100.3   |     192.168.100.2      |  TCP   |    *     |    22    | Accept |
+|   192.168.100.2   |     192.168.100.3      |  TCP   |    22    |    *     | Accept |
+|         *         |    192.168.100.0/24    |  any   |    *     |    *     |  Drop  |
+|         *         |    192.168.200.0/24    |  any   |    *     |    *     |  Drop  |
+| 192.168.100.0/24  |           *            |  any   |    *     |    *     |  Drop  |
+| 192.168.200.0/24  |           *            |  any   |    *     |    *     |  Drop  |
 
 ---
 
@@ -213,6 +239,8 @@ ping 192.168.200.3
 
 **LIVRABLE : capture d'écran de votre tentative de ping.**  
 
+![image-20210318160513940](figures/image-20210318160513940.png)
+
 ---
 
 En effet, la communication entre les clients dans le LAN et les serveurs dans la DMZ doit passer à travers le Firewall. Dans certaines configuration, il est probable que le ping arrive à passer par le bridge par défaut. Ceci est une limitation de Docker. **Si votre ping passe**, vous pouvez accompagner votre capture du ping avec une capture d'une commande traceroute qui montre que le ping ne passe pas actuellement par le Firewall mais qu'il a emprunté un autre chemin.
@@ -252,6 +280,8 @@ ping 192.168.100.3
 
 **LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
 
+![image-20210318160811739](figures/image-20210318160811739.png)
+
 ---
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
@@ -267,6 +297,14 @@ Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indiq
 ---
 
 **LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+
+Depuis le serveur (émet une redirection):
+
+![image-20210318160931852](figures/image-20210318160931852.png)
+
+Depuis le client:
+
+![image-20210318161009901](figures/image-20210318161009901.png)
 
 ---
 
@@ -346,6 +384,21 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -d 192.168.100.0/24 -j ACCEPT
+
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+
+
+
 ```
 ---
 
@@ -358,18 +411,30 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+```
 Faire une capture du ping.
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
 
 
 ---
 **LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
+
+ping:
+
+![image-20210321174130670](figures/image-20210321174130670.png)
+
+traceroute:
+
+Pour que la commande traceroute fonctionne, il faut mettre la FORWARD chain et l'OUTPUT chain en ACCEPT.
+
+<img src="figures/image-20210321180937053.png" alt="image-20210321180937053" style="zoom:150%;" />
+
+
 
 ---
 
@@ -379,20 +444,20 @@ traceroute 8.8.8.8
 </ol>
 
 
-| De Client\_in\_LAN à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
+| De Client\_in\_LAN à | OK/KO | Commentaires et explications                             |
+| :------------------- | :---: | :------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | INPUT et OUTPUT du firewall sont en DROP                 |
+| Interface LAN du FW  |  KO   | INPUT et OUTPUT du firewall sont en DROP                 |
+| Client LAN           |  OK   | On est sûr le même réseau                                |
+| Serveur WAN          |  OK   | Nous avons accepté les pings sur le WAN depuis le client |
 
 
-| De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| De Server\_in\_DMZ à | OK/KO | Commentaires et explications                                 |
+| :------------------- | :---: | :----------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | INPUT et OUTPUT du firewall sont en DROP                     |
+| Interface LAN du FW  |  KO   | INPUT et OUTPUT du firewall sont en DROP                     |
+| Serveur DMZ          |  OK   | On est sûr le même réseau                                    |
+| Serveur WAN          |  KO   | Nous n'avons pas accepté les pings sur le WAN depuis le serveur |
 
 
 ## Règles pour le protocole DNS
@@ -412,6 +477,8 @@ ping www.google.com
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![image-20210321182019767](figures/image-20210321182019767.png)
+
 ---
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
@@ -422,6 +489,15 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+iptables -A FORWARD -p tcp --dport 53 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p udp --dport 53 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p udp --sport 53 -d 192.168.100.0/24 -j ACCEPT
+
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -m conntrack --ctstate INVALID -j DROP
+
+(à partir d'ici, les retours du FORWARD seront gérés par le module conntrack)
 ```
 
 ---
@@ -435,6 +511,8 @@ LIVRABLE : Commandes iptables
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![image-20210321183920059](figures/image-20210321183920059.png)
+
 ---
 
 <ol type="a" start="6">
@@ -446,6 +524,8 @@ LIVRABLE : Commandes iptables
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Comme la résolution du nom de domaine a échoué, le nom du domaine n'a pas pu être traduit en adresse IP. Le ping ne peut dont pas être exécuté.
 
 ---
 
@@ -466,6 +546,11 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+iptables -A FORWARD -p tcp --dport 80 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p tcp --dport 8080 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p tcp --dport 443 -s 192.168.100.0/24 -j ACCEPT
+
 ```
 
 ---
@@ -478,6 +563,9 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+iptables -A FORWARD -p tcp --dport 80 -s 192.168.100.0/24 -d 192.168.200.3 -j ACCEPT
+iptables -A FORWARD -p tcp --dport 80 -d 192.168.200.3 -j ACCEPT
 ```
 ---
 
@@ -489,6 +577,16 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran.**
+
+Pour les conditions 3 et 4:
+
+![image-20210321185712064](figures/image-20210321185712064.png)
+
+Pour la condition 5:
+
+![image-20210321191352985](figures/image-20210321191352985.png)
+
+
 
 ---
 
@@ -506,6 +604,11 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+iptables -A FORWARD -p tcp --dport 22 -s 192.168.100.3 -d 192.168.200.3 -j ACCEPT
+
+iptables -A INPUT -p tcp --dport 22 -s 192.168.100.3 -d 192.168.100.2 -j ACCEPT
+iptables -A OUTPUT -p tcp --dport 22 -s 192.168.100.3 -d 192.168.100.2 -j ACCEPT
 ```
 
 ---
@@ -520,6 +623,18 @@ ssh root@192.168.200.3
 
 **LIVRABLE : capture d'écran de votre connexion ssh.**
 
+Lorsqu'on se connecte au serveur de la DMZ:
+
+![image-20210321202251613](figures/image-20210321202251613.png)
+
+![image-20210321202311857](figures/image-20210321202311857.png)
+
+Lorsqu'on se connecte au firewall:
+
+![image-20210321202703254](figures/image-20210321202703254.png)
+
+
+
 ---
 
 <ol type="a" start="9">
@@ -532,18 +647,20 @@ ssh root@192.168.200.3
 
 **LIVRABLE : Votre réponse ici...**
 
+Le protocole SSH permet de se connecter de manière sécurisé sur des systèmes distants. Une fois connecté, tous les segments TCP sont authentifiés et chiffrés.
+
 ---
 
 <ol type="a" start="10">
   <li>En général, à quoi faut-il particulièrement faire attention lors de l'écriture des règles du pare-feu pour ce type de connexion ? 
   </li>                                  
 </ol>
-
-
 ---
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Comme une connexion par ssh permet de prendre le contrôle total du serveur, il est important limiter le plus possible les moyens de connections. On autorise seulement le strict nécessaire au niveau des interfaces et ports.
 
 ---
 
@@ -559,5 +676,7 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 ---
 
 **LIVRABLE : capture d'écran avec toutes vos règles.**
+
+![image-20210323170939360](figures/image-20210323170939360.png)
 
 ---
