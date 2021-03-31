@@ -125,15 +125,35 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 
 **LIVRABLE : Remplir le tableau**
 
-| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+
+| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action | Flag | Comments |
+| :---:             | :---:                  | :---:| :------: | :------: | :----: | :--: | :------: |
+|          *        |        *               |  *   |   *      |    *     |Drop    |   -  | Defaut   |
+|192.168.100.0/24   |interface WAN           | UDP  | *        |53        |Accept  |   -  | DNS sortant |
+|interface WAN      |192.168.100.0/24        | UDP  | 53       |*         |Accept  | ACK  | DNS entrant |
+|192.168.100.0/24   |interface WAN           | TCP  | *        |53        |Accept  |   -  | DNS sortant |
+|interface WAN      |192.168.100.0/24        | TCP  | 53       |*         |Accept  | ACK  | DNS entrant |
+|192.168.100.0/24   |interface WAN           |ICMP  | *        |    *     |Accept |   -  | ICMP echo request |
+|192.168.100.0/24   |192.168.200.0/24        |ICMP  | *        |    *     |Accept |   -  | ICMP echo request |
+|192.168.200.0/24   |192.168.100.0/24        |ICMP  | *        |    *     |Accept |   -  | ICMP echo request |
+|interface WAN      |192.168.100.0/24        |ICMP  | *        |    *     |Accept |   -  | ICMP echo reply   |
+|192.168.200.0/24   |192.168.100.0/24        |ICMP  | *        |    *     |Accept |   -  | ICMP echo reply   |
+|192.168.100.0/24   |192.168.200.0/24        |ICMP  | *        |    *     |Accept |   -  | ICMP echo reply   |
+|192.168.100.0/24   |interface WAN           |TCP  | *         |80       |Accept   |  -  | HTTP sortant      |
+|192.168.100.0/24   |interface WAN           |TCP  | *         |8080     |Accept   |  -  | HTTP sortant      |
+|192.168.100.0/24   |interface WAN           |TCP  | *         |443      |Accept   |  -  | HTTPS sortant     |
+|interface WAN   |192.168.100.0/24           |TCP  | 80         |*       |Accept   |  ACK  | HTTP entrant (statefull) |
+|interface WAN   |192.168.100.0/24           |TCP  | 8080         |*     |Accept   |  ACK  | HTTP entrant (statefull) |
+|interface WAN   |192.168.100.0/24           |TCP  | 443         |*      |Accept   |  ACK  | HTTPS entrant (statefull) |
+|interface WAN      |192.168.200.3 (Server_in_DMZ) |TCP  | *         |80       |Accept   |  -  | Server DMZ atteignable  |
+|192.168.100.0/24   |192.168.200.3 (Server_in_DMZ) |TCP  | *         |80       |Accept   |  -  | Server DMZ atteignable  |
+|192.168.200.3 (Server_in_DMZ)      |interface WAN |TCP  | 80         |*       |Accept   | ACK | Server DMZ réponse  |
+|192.168.200.3 (Server_in_DMZ)   |192.168.100.0/24 |TCP  | 80         |*       |Accept   | ACK | Server DMZ réponse  |
+|192.168.100.3 (Client_in_LAN)   |192.168.200.3 (Server_in_DMZ) |TCP  |*         |22       |Accept   |  -  | ssh sortant |
+|192.168.100.3 (Client_in_LAN)   |192.168.100.2 (Firewall)   |TCP  | *         |22       |Accept   |  -  | ssh sortant |
+|192.168.200.3 (Server_in_DMZ)   |192.168.100.3 (Client_in_LAN)   |TCP  | 22         |*       |Accept   | ACK | ssh entrant |
+|192.168.100.2 (Firewall)   |192.168.100.3 (Client_in_LAN)   |TCP  | 22         |*       |Accept   | ACK | ssh entrant |
+
 
 ---
 
@@ -213,6 +233,8 @@ ping 192.168.200.3
 
 **LIVRABLE : capture d'écran de votre tentative de ping.**  
 
+![](./figures/ping1.png)
+
 ---
 
 En effet, la communication entre les clients dans le LAN et les serveurs dans la DMZ doit passer à travers le Firewall. Dans certaines configuration, il est probable que le ping arrive à passer par le bridge par défaut. Ceci est une limitation de Docker. **Si votre ping passe**, vous pouvez accompagner votre capture du ping avec une capture d'une commande traceroute qui montre que le ping ne passe pas actuellement par le Firewall mais qu'il a emprunté un autre chemin.
@@ -252,6 +274,14 @@ ping 192.168.100.3
 
 **LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
 
+* route du serveur dans la dmz :
+  
+  ![](./figures/dmz_route.PNG)
+
+* route de la machine dans le lan :
+  
+  ![](./figures/lan_route.PNG)
+
 ---
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
@@ -267,6 +297,8 @@ Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indiq
 ---
 
 **LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+
+![](./figures/ping3.png)
 
 ---
 
@@ -345,7 +377,24 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+#block all:
+iptables -t filter -P INPUT DROP
+iptables -t filter -P OUTPUT DROP
+iptables -t filter -P FORWARD DROP
+
+#les pings depuis le LAN vers la DMZ
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+
+#les pings depuis le LAN vers le WAN (normalement il faudrait préciser une interface réseau de sortie/entrée correspondant à l'interface réseau WAN du firewall,
+# mais comme celle-ci n'est pas accessible depuis le docker nous n'avons pas utilisé les options -i et -o.)
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -d 192.168.100.0/24 -j ACCEPT
+
+#les pings depuis la DMZ vers le LAN
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+
 ```
 ---
 
@@ -358,18 +407,24 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+``` 
+
 Faire une capture du ping.
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
+ 	            
 
 
 ---
 **LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
+
+![](./figures/ping4.png)
+
+![](./figures/traceroute1.png)
 
 ---
 
@@ -381,18 +436,18 @@ traceroute 8.8.8.8
 
 | De Client\_in\_LAN à | OK/KO | Commentaires et explications |
 | :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
+| Interface DMZ du FW  |  KO     | On est en DROP policy et on utilise du FORWARD donc pas accepté sur le FW                             |
+| Interface LAN du FW  |  KO     | On est en DROP policy et on utilise du FORWARD donc pas accepté sur le FW                             |
+| Serveur DMZ          |  OK     | Comme souhaité                             |
+| Serveur WAN          |  OK     | Comme souhaité                             |
 
 
 | De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
 | :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| Interface DMZ du FW  |   KO    | On est en DROP policy et on utilise du FORWARD donc pas accepté sur le FW                             |
+| Interface LAN du FW  |  KO     | On est en DROP policy et on utilise du FORWARD donc pas accepté sur le FW                             |
+| Client LAN           |  OK     | Comme souhaité                             |
+| Serveur WAN          |  KO     | Comme souhaité                             |
 
 
 ## Règles pour le protocole DNS
@@ -412,6 +467,8 @@ ping www.google.com
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![](./figures/ping5.png)
+
 ---
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
@@ -422,6 +479,14 @@ Commandes iptables :
 
 ```bash
 LIVRABLE : Commandes iptables
+
+#Comme précédemment il faudrait utiliser l'option -o avec l'interface réseau WAN du firewall, mais ce n'est pas possible dans le docker...
+iptables -A FORWARD -p udp -m conntrack --ctstate NEW,ESTABLISHED --dport 53 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate NEW,ESTABLISHED --dport 53 -s 192.168.100.0/24 -j ACCEPT
+#Comme précédemment il faudrait utiliser l'option -i avec l'interface réseau WAN du firewall, mais ce n'est pas possible dans le docker...
+iptables -A FORWARD -p udp -m conntrack --ctstate ESTABLISHED --sport 53 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate ESTABLISHED --sport 53 -d 192.168.100.0/24 -j ACCEPT
+
 ```
 
 ---
@@ -435,6 +500,8 @@ LIVRABLE : Commandes iptables
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![](./figures/ping6.png)
+
 ---
 
 <ol type="a" start="6">
@@ -446,6 +513,8 @@ LIVRABLE : Commandes iptables
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Par défaut nous avons la politique DROP all sur le firewall. Et nous avions encore aucune règle autorisant les protocoles udp/tcp sur le port 53. L'accès au serveur DNS était alors refusé et la résolution de nom n'a pas pu être effectuée.
 
 ---
 
@@ -465,8 +534,18 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+#Comme précédemment il faudrait utiliser l'option -o avec l'interface réseau WAN du firewall, mais ce n'est pas possible dans le docker...
+iptables -A FORWARD -p tcp -m conntrack --ctstate NEW,ESTABLISHED -s 192.168.100.0/24 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate NEW,ESTABLISHED -s 192.168.100.0/24 --dport 8080 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate NEW,ESTABLISHED -s 192.168.100.0/24 --dport 443 -j ACCEPT
+#Comme précédemment il faudrait utiliser l'option -i avec l'interface réseau WAN du firewall, mais ce n'est pas possible dans le docker...
+iptables -A FORWARD -p tcp -m conntrack --ctstate ESTABLISHED -d 192.168.100.0/24 --sport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate ESTABLISHED -d 192.168.100.0/24 --sport 8080 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate ESTABLISHED -d 192.168.100.0/24 --sport 443 -j ACCEPT
 ```
+
+![](./figures/wget.png)
+
 
 ---
 
@@ -477,9 +556,26 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+#Du WAN au serveur web
+#Comme précédemment il faudrait utiliser l'option -i avec l'interface réseau WAN du firewall, mais ce n'est pas possible dans le docker...
+iptables -A FORWARD -p tcp --dport 80 -d 192.168.200.3 -j ACCEPT
+#Du serveur web au WAN
+#Comme précédemment il faudrait utiliser l'option -o avec l'interface réseau WAN du firewall, mais ce n'est pas possible dans le docker...
+iptables -A FORWARD -p tcp --sport 80 -s 192.168.200.3 -j ACCEPT
+
+#Du LAN au serveur web
+iptables -A FORWARD -p tcp -m conntrack --ctstate NEW,ESTABLISHED --dport 80 -s 192.168.100.0/24 -d 192.168.200.3 -j ACCEPT
+#Du serveur web au LAN
+iptables -A FORWARD -p tcp -m conntrack --ctstate ESTABLISHED --sport 80 -s 192.168.200.3 -d 192.168.100.0/24 -j ACCEPT
+
+
+
+
+
 ```
 ---
+
+
 
 <ol type="a" start="7">
   <li>Tester l’accès à ce serveur depuis le LAN utilisant utilisant wget (ne pas oublier les captures d'écran). 
@@ -489,6 +585,9 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran.**
+
+![](./figures/wget2.png)
+
 
 ---
 
@@ -505,7 +604,14 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+#Accès ssh au serveur web de la DMZ depuis le client LAN
+iptables -A FORWARD -p tcp -m conntrack --ctstate NEW,ESTABLISHED -s 192.168.100.3 -d 192.168.200.3 --dport 22 -j ACCEPT
+iptables -A FORWARD -p tcp -m conntrack --ctstate ESTABLISHED -s 192.168.200.3 --sport 22 -d 192.168.100.3 -j ACCEPT
+
+#Accès ssh au firewall depuis le client LAN
+iptables -A INPUT -p tcp -m conntrack --ctstate NEW,ESTABLISHED --dport 22 -s 192.168.100.3 -j ACCEPT
+iptables -A OUTPUT -p tcp -m conntrack --ctstate ESTABLISHED --sport 22  -d  192.168.100.3 -j ACCEPT
+
 ```
 
 ---
@@ -520,6 +626,7 @@ ssh root@192.168.200.3
 
 **LIVRABLE : capture d'écran de votre connexion ssh.**
 
+![](./figures/ssh1.png)
 ---
 
 <ol type="a" start="9">
@@ -530,7 +637,7 @@ ssh root@192.168.200.3
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+Le serveur peut se situer dans une infrastructure distante et donc un accès ssh permet d'accèder au serveur depuis notre poste de travail sans devoir se déplacer à l'endroit ou se situe le serveur. De plus comme ssh est une connexion encryptée et sûre, cela empêche la récupération d'informations lors d'un spoofing.
 
 ---
 
@@ -543,7 +650,7 @@ ssh root@192.168.200.3
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+Que la connexion ssh ne soit permise qu'aux machines souhaitées. De plus en utilisant les règles avec états nous évitons le cas ou un attaquant s'empare du serveur et essaye d'établir une connexion ssh à notre client.
 
 ---
 
@@ -559,5 +666,7 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 ---
 
 **LIVRABLE : capture d'écran avec toutes vos règles.**
+
+![](./figures/iptablesfinal.png)
 
 ---
