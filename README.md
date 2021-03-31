@@ -1,5 +1,7 @@
 # Teaching-HEIGVD-SRX-2021-Laboratoire-Firewall
 
+> Auteurs: Robin Gaudin & Noémie Plancherel
+
 **Travail à réaliser en équipes de deux personnes.**
 
 **ATTENTION : Commencez par créer un Fork de ce repo et travaillez sur votre fork.**
@@ -126,14 +128,19 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 **LIVRABLE : Remplir le tableau**
 
 | Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+| :---------------: | :--------------------: | :--: | :------: | :------: | :----: |
+| 192.168.100.0/24  |     172.17.0.2/24      | TCP  |   all    |    53    | Accept |
+| 192.168.100.0/24  |     172.17.0.2/24      | UDP  |   all    |    53    | Accept |
+| 192.168.100.0/24  |     172.17.0.2/24      | ICMP |   all    |   all    | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP |   all    |   all    | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP |   all    |   all    | Accept |
+| 192.168.100.0/24  |        anywhere        | TCP  |   all    |    80    | Accept |
+| 192.168.100.0/24  |        anywhere        | TCP  |   all    |   8080   | Accept |
+| 192.168.100.0/24  |        anwhere         | TCP  |   all    |   443    | Accept |
+|     anywhere      |    192.168.200.3/32    | TCP  |   all    |    80    | Accept |
+| 192.168.100.3/32  |    192.168.200.3/32    | TCP  |   all    |    22    | Accept |
+| 192.168.100.3/32  |    192.168.100.2/32    | TCP  |   all    |    22    | Accept |
+|     anywhere      |        anywhere        | all  |   all    |   all    |  Drop  |
 
 ---
 
@@ -213,6 +220,8 @@ ping 192.168.200.3
 
 **LIVRABLE : capture d'écran de votre tentative de ping.**  
 
+![image-20210321171727917](/figures/image-20210321171727917.png)
+
 ---
 
 En effet, la communication entre les clients dans le LAN et les serveurs dans la DMZ doit passer à travers le Firewall. Dans certaines configuration, il est probable que le ping arrive à passer par le bridge par défaut. Ceci est une limitation de Docker. **Si votre ping passe**, vous pouvez accompagner votre capture du ping avec une capture d'une commande traceroute qui montre que le ping ne passe pas actuellement par le Firewall mais qu'il a emprunté un autre chemin.
@@ -252,6 +261,12 @@ ping 192.168.100.3
 
 **LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
 
+![image-20210321172432559](/figures/image-20210321172432559.png)
+
+![image-20210321172617878](/figures/image-20210321172617878.png)
+
+![image-20210321172642854](/figures/image-20210321172642854.png)
+
 ---
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
@@ -267,6 +282,14 @@ Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indiq
 ---
 
 **LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+
+Depuis le client:
+
+![image-20210321172810623](/figures/image-20210321172810623.png)
+
+Depuis le serveur:
+
+![image-20210321172837484](/figures/image-20210321172837484.png)
 
 ---
 
@@ -345,7 +368,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 8 -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p icmp --icmp-type 0 -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
 ```
 ---
 
@@ -358,18 +384,22 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+```
 Faire une capture du ping.
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
 
 
 ---
 **LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
+
+![](/figures/image-20210321190851389.png)
+
+![image-20210321193917415](/figures/image-20210321193917415.png)
 
 ---
 
@@ -377,22 +407,20 @@ traceroute 8.8.8.8
   <li>Testez ensuite toutes les règles, depuis le Client_in_LAN puis depuis le serveur Web (Server_in_DMZ) et remplir le tableau suivant : 
   </li>                                  
 </ol>
+| De Client\_in\_LAN à | OK/KO | Commentaires et explications         |
+| :------------------- | :---: | :----------------------------------- |
+| Interface DMZ du FW  |  KO   | Les interfaces ne sont pas acceptées |
+| Interface LAN du FW  |  KO   | Les interfaces ne sont pas acceptées |
+| Client LAN           |  OK   | Accepté avec une règle               |
+| Serveur WAN          |  OK   | Accepté avec une règle               |
 
 
-| De Client\_in\_LAN à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
-
-
-| De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| De Server\_in\_DMZ à | OK/KO | Commentaires et explications          |
+| :------------------- | :---: | :------------------------------------ |
+| Interface DMZ du FW  |  KO   | Les interfaces ne sont pas autorisées |
+| Interface LAN du FW  |  KO   | Les interfaces ne sont pas autorisées |
+| Serveur DMZ          |  OK   | Condition respéctée car lui-même      |
+| Serveur WAN          |  KO   | Condition respectée                   |
 
 
 ## Règles pour le protocole DNS
@@ -412,6 +440,8 @@ ping www.google.com
 
 **LIVRABLE : capture d'écran de votre ping.**
 
+![image-20210321201856826](/figures/image-20210321201856826.png)
+
 ---
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
@@ -421,7 +451,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 --dport 53 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 --sport 53 -j ACCEPT
+iptables -A FORWARD -p udp -s 192.168.100.0/24 --dport 53 -j ACCEPT
+iptables -A FORWARD -p udp -d 192.168.100.0/24 --sport 53 -j ACCEPT
 ```
 
 ---
@@ -434,6 +467,8 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran de votre ping.**
+
+![image-20210321202701830](/figures/image-20210321202701830.png)
 
 ---
 
@@ -465,7 +500,12 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 --sport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 --dport 8080 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 --sport 8080 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 --dport 443 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 --sport 443 -j ACCEPT
 ```
 
 ---
@@ -477,7 +517,8 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -d 192.168.200.3/32 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.200.3/32 --sport 80 -j ACCEPT
 ```
 ---
 
@@ -489,6 +530,8 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran.**
+
+![image-20210321203253628](/figures/image-20210321203253628.png)
 
 ---
 
@@ -505,7 +548,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+iptables -A FORWARD -p tcp -s 192.168.100.3/32 -d 192.168.200.3/32 --dport 22 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.3/32 -s 192.168.200.3/32 --sport 22 -j ACCEPT
+iptables -A INPUT -p tcp -s 192.168.100.3/32 -d 192.168.100.2/32 --dport 22 -j ACCEPT
+iptables -A OUTPUT -p tcp -d 192.168.100.3/32 -s 192.168.100.2/32 --sport 22 -j ACCEPT
 ```
 
 ---
@@ -520,6 +566,8 @@ ssh root@192.168.200.3
 
 **LIVRABLE : capture d'écran de votre connexion ssh.**
 
+![image-20210321204339293](/figures/image-20210321204339293.png)
+
 ---
 
 <ol type="a" start="9">
@@ -530,7 +578,7 @@ ssh root@192.168.200.3
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+ssh est utile pour pouvoir se connecter à distance. Par exemple, si on doit travailler sur un firewall qui se trouve dans un autre bâtiment, on peut directement travailler dessus via une connexion ssh.
 
 ---
 
@@ -543,7 +591,7 @@ ssh root@192.168.200.3
 ---
 **Réponse**
 
-**LIVRABLE : Votre réponse ici...**
+Il faut faire attention à quelles adresses ip on accepte la connexion ssh.
 
 ---
 
@@ -561,3 +609,5 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 **LIVRABLE : capture d'écran avec toutes vos règles.**
 
 ---
+
+![image-20210331224244283](/figures/image-20210331224244283.png)
