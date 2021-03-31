@@ -407,6 +407,7 @@ traceroute 8.8.8.8
   <li>Testez ensuite toutes les règles, depuis le Client_in_LAN puis depuis le serveur Web (Server_in_DMZ) et remplir le tableau suivant : 
   </li>                                  
 </ol>
+
 | De Client\_in\_LAN à | OK/KO | Commentaires et explications         |
 | :------------------- | :---: | :----------------------------------- |
 | Interface DMZ du FW  |  KO   | Les interfaces ne sont pas acceptées |
