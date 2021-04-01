@@ -1,0 +1,58 @@
+# Flush current rules
+iptables -F
+
+# Set default policy to DROP
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+
+# ALLOW PING traffic
+
+## From LAN to DMZ
+iptables -A FORWARD -p ICMP --icmp-type echo-request -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+iptables -A FORWARD -p ICMP --icmp-type echo-reply -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+
+## From DMZ to LAN
+iptables -A FORWARD -p ICMP --icmp-type echo-request -s 192.168.200.0/24 -d 192.168.100.0/24 -j ACCEPT
+iptables -A FORWARD -p ICMP --icmp-type echo-reply -s 192.168.100.0/24 -d 192.168.200.0/24 -j ACCEPT
+
+## From LAN to WAN (all)
+iptables -A FORWARD -p ICMP --icmp-type echo-request -s 192.168.100.0/24 -o eth0 -j ACCEPT
+iptables -A FORWARD -p ICMP --icmp-type echo-reply -d 192.168.100.0/24 -i eth0 -j ACCEPT
+
+# DNS
+
+## UDP
+iptables -A FORWARD -p udp -s 192.168.100.0/24 -o eth0 --dport 53 -j ACCEPT
+iptables -A FORWARD -p udp -d 192.168.100.0/24 -i eth0 --sport 53 -j ACCEPT
+## TCP
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --dport 53 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --sport 53 -j ACCEPT
+
+# HTTP & HTTPS
+
+## HTTP
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --match multiport --sports 80,8080 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --match multiport --dports 80,8080 -j ACCEPT
+
+## HTTPS
+iptables -A FORWARD -p tcp -d 192.168.100.0/24 -i eth0 --sport 443 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.100.0/24 -o eth0 --dport 443 -j ACCEPT
+
+# Allow port 80 from WAN and LAN
+iptables -A FORWARD -p tcp -d 192.168.200.3 -i eth0 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.200.3 -o eth0 --sport 80 -j ACCEPT
+
+iptables -A FORWARD -p tcp -d 192.168.200.3 -s 192.168.100.0/24 --dport 80 -j ACCEPT
+iptables -A FORWARD -p tcp -s 192.168.200.3 -d 192.168.100.0/24 --sport 80 -j ACCEPT
+
+# SSH
+
+iptables -A FORWARD -p tcp -s 192.168.200.3 -d 192.168.100.3 --sport 22 -j ACCEPT
+iptables -A FORWARD -p tcp -d 192.168.200.3 -s 192.168.100.3 --dport 22 -j ACCEPT
+
+iptables -A INPUT   -p tcp -s 192.168.100.3 --dport 22 -j ACCEPT
+iptables -A OUTPUT  -p tcp -d 192.168.100.3 --sport 22 -j ACCEPT
+
+
+
