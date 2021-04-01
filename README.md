@@ -125,15 +125,33 @@ _Lors de la définition d'une zone, spécifier l'adresse du sous-réseau IP avec
 
 **LIVRABLE : Remplir le tableau**
 
-| Adresse IP source | Adresse IP destination | Type | Port src | Port dst | Action |
-| :---:             | :---:                  | :---:| :------: | :------: | :----: |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
-|                   |                        |      |          |          |        |
+| Adresse IP source | Adresse IP destination |  Type  | Port src | Port dst | Action |
+| :---------------: | :--------------------: | :----: | :------: | :------: | :----: |
+|       tout        |          tout          |  any   |          |          |  Drop  |
+|       tout        |     interface WAN      |  UDP   |          |    53    | Accept |
+|   interface WAN   |          tout          |  UDP   |    53    |          | Accept |
+|       tout        |     interface WAN      |  TCP   |          |    53    | Accept |
+|   interface WAN   |          tout          |  TCP   |    53    |          | Accept |
+| 192.168.100.0/24  |     interface WAN      | ICMP-8 |          |          | Accept |
+|   interface WAN   |    192.168.100.0/24    | ICMP-0 |          |          | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP-8 |          |          | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP-0 |          |          | Accept |
+| 192.168.200.0/24  |    192.168.100.0/24    | ICMP-8 |          |          | Accept |
+| 192.168.100.0/24  |    192.168.200.0/24    | ICMP-0 |          |          | Accept |
+| 192.168.100.0/24  |     interface WAN      |  TCP   |          |    80    | Accept |
+|   interface WAN   |    192.168.100.0/24    |  TCP   |    80    |          | Accept |
+| 192.168.100.0/24  |     interface WAN      |  TCP   |          |   8080   | Accept |
+|   interface WAN   |    192.168.100.0/24    |  TCP   |   8080   |          | Accept |
+| 192.168.100.0/24  |     interface WAN      |  TCP   |          |   443    | Accept |
+|   interface WAN   |    192.168.100.0/24    |  TCP   |   443    |          | Accept |
+| 192.168.100.0/24  |     192.168.200.3      |  TCP   |          |    80    | Accept |
+|   192.168.200.3   |    192.168.100.0/24    |  TCP   |    80    |          | Accept |
+|   interface WAN   |     192.168.200.3      |  TCP   |          |    80    | Accept |
+|   192.168.200.3   |     interface WAN      |  TCP   |    80    |          | Accept |
+| 192.168.100.0/24  |     192.168.200.3      |  TCP   |          |    22    | Accept |
+|   192.168.200.3   |    192.168.100.0/24    |  TCP   |    22    |          | Accept |
+| 192.168.100.0/24  |     192.168.100.2      |  TCP   |          |    22    | Accept |
+|   192.168.100.2   |    192.168.100.0/24    |  TCP   |    22    |          | Accept |
 
 ---
 
@@ -213,6 +231,7 @@ ping 192.168.200.3
 
 **LIVRABLE : capture d'écran de votre tentative de ping.**  
 
+![ping docker](figures/ping-docker.png)
 ---
 
 En effet, la communication entre les clients dans le LAN et les serveurs dans la DMZ doit passer à travers le Firewall. Dans certaines configuration, il est probable que le ping arrive à passer par le bridge par défaut. Ceci est une limitation de Docker. **Si votre ping passe**, vous pouvez accompagner votre capture du ping avec une capture d'une commande traceroute qui montre que le ping ne passe pas actuellement par le Firewall mais qu'il a emprunté un autre chemin.
@@ -252,6 +271,12 @@ ping 192.168.100.3
 
 **LIVRABLES : captures d'écran des routes des deux machines et de votre nouvelle tentative de ping.**
 
+![ping srv-client](figures/Ping_Server_Client.png)
+
+![route srv-client](figures/route-srv-client.png)
+
+![route client-srv](figures/route-client-srv.png)
+
 ---
 
 La communication est maintenant possible entre les deux machines. Pourtant, si vous essayez de communiquer depuis le client ou le serveur vers l'Internet, ça ne devrait pas encore fonctionner sans une manipulation supplémentaire au niveau du firewall ou sans un service de redirection ICMP. Vous pouvez le vérifier avec un ping depuis le client ou le serveur vers une adresse Internet. 
@@ -266,8 +291,9 @@ Si votre ping passe mais que la réponse contient un _Redirect Host_, ceci indiq
 
 ---
 
-**LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses containant des _Redirect Host_ sont acceptés.**
+**LIVRABLE : capture d'écran de votre ping vers l'Internet. Un ping qui ne passe pas ou des réponses contenant des _Redirect Host_ sont acceptés.**
 
+![ping to web](figures/no-ping-web.png)
 ---
 
 ### Configuration réseau du firewall
@@ -311,7 +337,7 @@ Sauvegarder la configuration du firewall dans le fichier `iptables.conf` :
 iptables-save > iptables.conf
 ```
 
-Récuperer la config sauvegardée :
+Récupérer la config sauvegardée :
 
 ```bash
 iptables-restore < iptables.conf
@@ -345,7 +371,17 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+# LIVRABLE : Commandes iptables
+# Politiques DROP
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+iptables -P FORWARD DROP
+# ping  LAN -> WAN/DMZ
+iptables -A FORWARD -s 192.168.100.0/24 -p icmp --icmp-type 8 -j ACCEPT
+iptables -A FORWARD -d 192.168.100.0/24 -p icmp --icmp-type 0 -j ACCEPT
+# ping DMZ -> LAN
+iptables -A FORWARD -d 192.168.100.0/24 -s 192.168.200.0/24 -p icmp --icmp-type 8 -j ACCEPT
+iptables -A FORWARD -s 192.168.100.0/24 -d 192.168.200.0/24 -p icmp --icmp-type 0 -j ACCEPT
 ```
 ---
 
@@ -358,18 +394,22 @@ LIVRABLE : Commandes iptables
 
 ```bash
 ping 8.8.8.8
-``` 	            
+```
 Faire une capture du ping.
 
 Vérifiez aussi la route entre votre client et le service `8.8.8.8`. Elle devrait partir de votre client et traverser votre Firewall :
 
 ```bash
 traceroute 8.8.8.8
-``` 	            
+```
 
 
 ---
 **LIVRABLE : capture d'écran du traceroute et de votre ping vers l'Internet. Il ne devrait pas y avoir des _Redirect Host_ dans les réponses au ping !**
+
+![ping cli-web](figures/ipt-ping-cli-web.png)
+
+![route cli-web](figures/ipt-route-cli-web.png)
 
 ---
 
@@ -379,20 +419,20 @@ traceroute 8.8.8.8
 </ol>
 
 
-| De Client\_in\_LAN à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Client LAN           |       |                              |
-| Serveur WAN          |       |                              |
+| De Client\_in\_LAN à | OK/KO | Commentaires et explications                                 |
+| :------------------- | :---: | :----------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | Il n'était pas demandé d'autoriser les ping de/vers le firewall. Bloqué par le firewall. |
+| Interface LAN du FW  |  KO   | Il n'était pas demandé d'autoriser les ping de/vers le firewall. Bloqué par le firewall. |
+| Client LAN           |  OK   |                                                              |
+| Serveur WAN          |  OK   |                                                              |
 
 
-| De Server\_in\_DMZ à | OK/KO | Commentaires et explications |
-| :---                 | :---: | :---                         |
-| Interface DMZ du FW  |       |                              |
-| Interface LAN du FW  |       |                              |
-| Serveur DMZ          |       |                              |
-| Serveur WAN          |       |                              |
+| De Server\_in\_DMZ à | OK/KO | Commentaires et explications                                 |
+| :------------------- | :---: | :----------------------------------------------------------- |
+| Interface DMZ du FW  |  KO   | Il n'était pas demandé d'autoriser les ping de/vers le firewall. Bloqué par le firewall. |
+| Interface LAN du FW  |  KO   | Il n'était pas demandé d'autoriser les ping de/vers le firewall. Bloqué par le firewall. |
+| Serveur DMZ          |  OK   |                                                              |
+| Serveur WAN          |  KO   | Bloqué par le firewall.                                      |
 
 
 ## Règles pour le protocole DNS
@@ -411,7 +451,7 @@ ping www.google.com
 ---
 
 **LIVRABLE : capture d'écran de votre ping.**
-
+![no ping google](figures/noPing-google.png)
 ---
 
 * Créer et appliquer la règle adéquate pour que la **condition 1 du cahier des charges** soit respectée.
@@ -421,7 +461,10 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+# LIVRABLE : Commandes iptables
+# DNS LAN
+iptables -A FORWARD -s 192.168.100.0/24 -p udp --dport 53 -j ACCEPT
+iptables -A FORWARD -d 192.168.100.0/24 -p udp --sport 53 -j ACCEPT
 ```
 
 ---
@@ -434,7 +477,7 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran de votre ping.**
-
+![ping google](figures/ping-google.png)
 ---
 
 <ol type="a" start="6">
@@ -446,6 +489,8 @@ LIVRABLE : Commandes iptables
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Le nom d'hôte ne peut pas être résolu, donc ping ne connaît pas l'IP et ne peut pas faire son job.
 
 ---
 
@@ -465,7 +510,20 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+# LIVRABLE : Commandes iptables
+# http LAN -> WAN/DMZ
+iptables -A FORWARD -m conntrack --ctstate NEW,RELATED,ESTABLISHED -s 192.168.100.0/24 -p tcp --dport 80 -j ACCEPT
+
+iptables -A FORWARD -m conntrack --ctstate NEW,RELATED,ESTABLISHED -s 192.168.100.0/24 -p tcp --dport 8080 -j ACCEPT
+
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -d 192.168.100.0/24 -p tcp --sport 80 -j ACCEPT
+
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -d 192.168.100.0/24 -p tcp --sport 8080 -j ACCEPT
+
+# https LAN -> WAN/DMZ 
+iptables -A FORWARD -m conntrack --ctstate NEW,RELATED,ESTABLISHED -s 192.168.100.0/24 -p tcp --dport 443 -j ACCEPT
+
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -d 192.168.100.0/24 -p tcp --sport 443 -j ACCEPT
 ```
 
 ---
@@ -477,7 +535,12 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+# LIVRABLE : Commandes iptables
+# http/s -> DMZ que sur port 80
+iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -d 192.168.200.3 -p tcp --dport 80 -j ACCEPT
+
+# http/s DMZ -> que via port 80
+iptables -A FORWARD -m conntrack --ctstate NEW,RELATED,ESTABLISHED -s 192.168.200.3 -p tcp --dport 80 -j ACCEPT
 ```
 ---
 
@@ -489,6 +552,11 @@ LIVRABLE : Commandes iptables
 ---
 
 **LIVRABLE : capture d'écran.**
+
+<img src="figures/wget-dmz-8080.png" alt="image-20210401111016489" style="zoom:67%;" />
+
+<img src="figures/wget-dmz-80.png" alt="image-20210401111104936" style="zoom:67%;" />
+
 
 ---
 
@@ -505,7 +573,13 @@ Commandes iptables :
 ---
 
 ```bash
-LIVRABLE : Commandes iptables
+# LIVRABLE : Commandes iptables
+# ssh client -> srv
+iptables -A FORWARD -s 192.168.100.3 -d 192.168.200.3 -p tcp --dport 22 -j ACCEPT
+iptables -A FORWARD -d 192.168.100.3 -s 192.168.200.3 -p tcp --sport 22 -j ACCEPT
+# ssh client -> firewall
+iptables -A INPUT -s 192.168.100.3 -d 192.168.100.2 -p tcp --dport 22 -j ACCEPT
+iptables -A OUTPUT -d 192.168.100.3 -s 192.168.100.2 -p tcp --sport 22 -j ACCEPT
 ```
 
 ---
@@ -519,7 +593,7 @@ ssh root@192.168.200.3
 ---
 
 **LIVRABLE : capture d'écran de votre connexion ssh.**
-
+<img src="figures/ssh-cli-srv.png" alt="ssh cli-srv" style="zoom:67%;" />
 ---
 
 <ol type="a" start="9">
@@ -531,6 +605,8 @@ ssh root@192.168.200.3
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Les serveurs sont généralement regroupés dans des espaces spécifiques, hors des bureaux. Ils est donc bien plus simple de se connecter à distance, plutôt que se déplacer jusqu'aux serveurs. De plus, le pc de bureaux sont équipé de calvier/souris.
 
 ---
 
@@ -544,6 +620,12 @@ ssh root@192.168.200.3
 **Réponse**
 
 **LIVRABLE : Votre réponse ici...**
+
+Donner des autorisations spécifiques a des IP, plutôt que sur une plage d'adresse.
+
+Nous ne voulons pas forcement que toutes les machines d'un sous-réseau soient accessibles via ssh.
+
+
 
 ---
 
@@ -559,5 +641,7 @@ A présent, vous devriez avoir le matériel nécessaire afin de reproduire la ta
 ---
 
 **LIVRABLE : capture d'écran avec toutes vos règles.**
+
+![iptables](figures/iptables.png)
 
 ---
